@@ -1,0 +1,252 @@
+<html>
+<script src='https://d3js.org/d3.v5.min.js'></script>
+<style> 
+
+li {
+  display: inline;
+}
+</style>
+
+<body onload='init()'>
+<nav>
+  <ul>
+    <li><strong>Pages:</strong></li>
+    <li><a href="index.html">Page 1</a></li>
+    <li><a href="page2.html">Page 2</a></li>
+  </ul>
+</nav>
+<!-- Create a div where the graph will take place -->
+
+
+<div class="narrative">
+  <header>
+    <h1>2017 Car Fuel Economy</h1>
+  </header>
+<p>As gas price increase and people is looking for zero emission vehicles, electirc cars become more popular than ever.</p>
+<p>Even though the price is still top barrier of people buying an electirc car,  electric cars have great energy efficiency (MPG), which save significate fuel bills for people for the long term </p>
+<p>Traditionally, disesl vehicles are more fuel efficent than gasoline engines but not too much.What can you expect for the electric vehicles energy efficiency? </p>
+<p>From the chart below, you can see MPG for electirc cars almost double than diesel and gasonline engines</p>
+</div>
+
+<svg class="AverageHighwayMPG" width=600 height=600>
+</svg>
+
+<svg class="AverageCityMPG" width=600 height=600>
+</svg>
+
+
+<script>
+
+async function init() {
+
+
+// set the dimensions and margins of the graph
+var margin = {top: 10, right: 30, bottom: 30, left: 40},
+    width = 460 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom;
+//color plate
+var color = d3.scaleOrdinal()
+    .domain(["Gasoline", "Diesel", "Electricity" ])
+    .range([ "purple", "red", "orange"])  
+	
+
+// append the svg object to the body of the page
+var svgAverageHighwayMPG = d3.select(".AverageHighwayMPG")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+		  
+const data= await d3.csv("https://flunky.github.io/cars2017.csv");
+
+var distributionAverageHighwayMPG = d3.nest()
+  .key(function(d) { return d.Fuel; })
+  .rollup(function(d) {
+      q1 = d3.quantile(d.map(function(g) { return +g.AverageHighwayMPG;}).sort(d3.ascending),.25)
+      median = d3.quantile(d.map(function(g) { return +g.AverageHighwayMPG;}).sort(d3.ascending),.5)
+      q3 = d3.quantile(d.map(function(g) { return +g.AverageHighwayMPG;}).sort(d3.ascending),.75)
+      interQuantileRange = q3 - q1
+ 
+	 min = d3.min(d.map(function(g) { return +g.AverageHighwayMPG;}).sort(d3.ascending));
+	 max = d3.max(d.map(function(g) { return +g.AverageHighwayMPG;}).sort(d3.ascending));
+      return({q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max})
+    })
+  .entries(data);
+  
+
+
+// Show the X scale
+  var x = d3.scaleBand()
+    .range([ 0, width ])
+    .domain(["Gasoline", "Diesel", "Electricity"])
+    .paddingInner(1)
+    .paddingOuter(.5)
+	
+  svgAverageHighwayMPG.append("g")
+	.attr("transform", "translate(" +  margin.left + "," +  (margin.top+height) + ")")
+    .call(d3.axisBottom(x))
+
+  // Show the Y scale
+  var y = d3.scaleLinear()
+    .domain([0,200])
+    .range([height, 0])
+	
+	
+  svgAverageHighwayMPG.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")").call(d3.axisLeft(y))
+  
+  
+  //add text label for the y axis
+  svgAverageHighwayMPG.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left)
+      .attr("x",0 - (height / 2))
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Average Highway MPG");      
+	  
+	  
+
+  // Show the main vertical line
+  svgAverageHighwayMPG.selectAll("vertLines")
+    .data(distributionAverageHighwayMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("line")
+      .attr("x1", function(d){return(x(d.key))})
+      .attr("x2", function(d){return(x(d.key))})
+      .attr("y1", function(d){return(y(d.value.min))})
+      .attr("y2", function(d){return(y(d.value.max))})
+      .attr("stroke", "black")
+      .style("width", 40)
+
+  // rectangle for the main box
+  var boxWidth = 100
+  svgAverageHighwayMPG.append("g").attr("transform", "translate(" +  100 + "," + 200+ ")")
+  svgAverageHighwayMPG.selectAll("boxes")
+    .data(distributionAverageHighwayMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("rect")
+        .attr("x", function(d){return(x(d.key)-boxWidth/2)})
+        .attr("y", function(d){return(y(d.value.q3))})
+        .attr("height", function(d){return(y(d.value.q1)-y(d.value.q3))})
+        .attr("width", boxWidth )
+        .attr("stroke", "black")
+        .style("fill", function(d,i){ return color(d.key)})
+
+  // Show the median
+  svgAverageHighwayMPG.selectAll("medianLines")
+    .data(distributionAverageHighwayMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("line")
+      .attr("x1", function(d){return(x(d.key)-boxWidth/2) })
+      .attr("x2", function(d){return(x(d.key)+boxWidth/2) })
+      .attr("y1", function(d){return(y(d.value.median))})
+      .attr("y2", function(d){return(y(d.value.median))})
+      .attr("stroke", "black")
+      .style("width", 80)
+
+//********************************Chart for AverageCityMPG *******************************
+// append the svg object to the body of the page
+var svgAverageCityMPG = d3.select(".AverageCityMPG")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+		  
+
+var distributionAverageCityMPG = d3.nest()
+  .key(function(d) { return d.Fuel; })
+  .rollup(function(d) {
+      q1 = d3.quantile(d.map(function(g) { return +g.AverageCityMPG;}).sort(d3.ascending),.25)
+      median = d3.quantile(d.map(function(g) { return +g.AverageCityMPG;}).sort(d3.ascending),.5)
+      q3 = d3.quantile(d.map(function(g) { return +g.AverageCityMPG;}).sort(d3.ascending),.75)
+      interQuantileRange = q3 - q1
+ 
+	 min = d3.min(d.map(function(g) { return +g.AverageCityMPG;}).sort(d3.ascending));
+	 max = d3.max(d.map(function(g) { return +g.AverageCityMPG;}).sort(d3.ascending));
+      return({q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max})
+    })
+  .entries(data);
+  
+
+
+// Show the X scale
+  var x = d3.scaleBand()
+    .range([ 0, width ])
+    .domain(["Gasoline", "Diesel", "Electricity"])
+    .paddingInner(1)
+    .paddingOuter(.5)
+	
+  svgAverageCityMPG.append("g")
+	.attr("transform", "translate(" +  margin.left + "," +  (margin.top+height) + ")")
+    .call(d3.axisBottom(x))
+
+  // Show the Y scale
+  var y = d3.scaleLinear()
+    .domain([0,200])
+    .range([height, 0])
+	
+	
+  svgAverageCityMPG.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")").call(d3.axisLeft(y))
+  
+  
+  //add text label for the y axis
+  svgAverageCityMPG.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left)
+      .attr("x",0 - (height / 2))
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Average City MPG");      
+	  
+	  
+
+  // Show the main vertical line
+  svgAverageCityMPG.selectAll("vertLines")
+    .data(distributionAverageCityMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("line")
+      .attr("x1", function(d){return(x(d.key))})
+      .attr("x2", function(d){return(x(d.key))})
+      .attr("y1", function(d){return(y(d.value.min))})
+      .attr("y2", function(d){return(y(d.value.max))})
+      .attr("stroke", "black")
+      .style("width", 40)
+
+  // rectangle for the main box
+  var boxWidth = 100
+  svgAverageCityMPG.append("g").attr("transform", "translate(" +  100 + "," + 200+ ")")
+  svgAverageCityMPG.selectAll("boxes")
+    .data(distributionAverageCityMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("rect")
+        .attr("x", function(d){return(x(d.key)-boxWidth/2)})
+        .attr("y", function(d){return(y(d.value.q3))})
+        .attr("height", function(d){return(y(d.value.q1)-y(d.value.q3))})
+        .attr("width", boxWidth )
+        .attr("stroke", "black")
+        .style("fill", function(d,i){ return color(d.key)})
+
+  // Show the median
+  svgAverageCityMPG.selectAll("medianLines")
+    .data(distributionAverageCityMPG)
+    .enter()
+	.append("g").attr("transform", "translate(" +  margin.left + "," +  margin.top + ")")
+    .append("line")
+      .attr("x1", function(d){return(x(d.key)-boxWidth/2) })
+      .attr("x2", function(d){return(x(d.key)+boxWidth/2) })
+      .attr("y1", function(d){return(y(d.value.median))})
+      .attr("y2", function(d){return(y(d.value.median))})
+      .attr("stroke", "black")
+      .style("width", 80)
+	  
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<html>
+<script src='https://d3js.org/d3.v5.min.js'></script>
+<style> 
+circle {fill: lightblue; stroke: black;} 
+li {
+  display: inline;
+}
+</style>
+<body onload='init()'>
+
+<nav>
+  <ul>
+    <li><strong>Pages:</strong></li>
+    <li><a href="index.html">Page 1</a></li>
+    <li><a href="page2.html">Page 2</a></li>
+  </ul>
+</nav>
+
+
+
+<div class="narrative">
+  <header>
+    <h1>2017 Car Fuel Economy</h1>
+  </header>
+<p>Who is making engery efficent car?</p>
+<p>The chart below shows MPG for car making in 2017 for different types of engines </p>
+</div>
+
+<div id="mytooltip"></div>
+<div class="checkBoxes"></div>
+<svg class="scatterChart" width=600 height=600>
+</svg>
+
+
+
+<script>
+
+async function init() {
+ const data= await d3.csv("https://flunky.github.io/cars2017.csv");
+
+// set the dimensions and margins of the graph
+var margin = {top: 10, right: 30, bottom: 30, left: 40},
+    width = 460 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom;
+	
+const svg = d3.select(".scatterChart");
+
+ 
+// Highlight the circle by selecting the the checkboxes
+function highlight(){
+ 
+  d3.selectAll("#legendCheckbox").each(function(d){
+          choice = d3.select(this);			
+		  var selectValue = choice.property("value")
+		   
+          if(choice.property("checked")){	
+    	  
+             d3.selectAll("." + selectValue)
+              .transition()
+              .duration(200)
+              .style("opacity", 1)
+          }
+		  else {
+             d3.selectAll("." + selectValue)
+              .transition()
+              .duration(200)
+              .style("opacity", 0)
+		  }
+   });
+		
+}
+
+  // -1- Create a tooltip div that is hidden by default:
+  var tooltip = d3.select("#mytooltip")
+    .append("div")
+      .style("opacity", 0)
+      .attr("class", "tooltip")
+      .style("background-color", "black")
+      .style("border-radius", "6px")
+      .style("padding", "5px")
+      .style("color", "white")
+	  ;
+
+ // show tooltip when mouse move over a circle, hide when mouse move out 
+    var showTooltip = function(d) {
+    tooltip
+      .transition()
+      .duration(100)
+    tooltip
+      .style("opacity", 1)
+      .html("Maker: " + d.Make + "</br>"  +
+	          "Average City MPG: " + d.AverageCityMPG + "</br>" + 
+			  "Average Highway MPG: " + d.AverageHighwayMPG)
+      .style("top", (event.pageY)+"px")
+	  .style("left",(event.pageX)+"px")
+	  ;
+  }
+  var moveTooltip = function(d) {
+    tooltip
+      .style("top", (event.pageY)+"px")
+	  .style("left",(event.pageX)+"px")
+	  ;	
+  }
+  var hideTooltip = function(d) {
+    tooltip
+      .transition()
+      .duration(100)
+      .style("opacity", 0)
+	  ;
+  }
+  
+
+// log x , log y
+var logScaleX = d3.scaleLog()
+  .domain([10, 150])
+  .range([0, width ]);
+var logScaleY = d3.scaleLog()
+  .domain([10, 150])
+  .range([ height,0 ]);
+//color plate
+  var color = d3.scaleOrdinal()
+    .domain(["Gasoline", "Diesel", "Electricity" ])
+    .range([ "purple", "red", "orange"])  ;
+	
+var yScale = d3.scaleLog().domain([10, 150]).range([height,0]); 
+var xScale = d3.scaleLog().domain([10, 150]).range([0,width]); 
+
+// set x , y axis
+var yAxis = d3. axisLeft(yScale)
+    .tickValues([10, 20,50,100])
+    . tickFormat (d3.format("~s"));
+	
+var xAxis = d3. axisBottom(xScale)
+    .tickValues([10, 20,50,100])
+    . tickFormat (d3.format("~s"));
+
+//plot x, y axis	
+svg.append('g').attr("transform", "translate( " + margin.left + "," + margin.top + ")").call(yAxis);
+svg.append('g').attr("transform", "translate( " +  margin.left + "," + (height+margin.top) + ")").call(xAxis);
+
+  //add text label for the y axis
+  svg.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 )
+      .attr("x",0 - (height / 2) )
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Average Highway MPG");      
+	  
+	
+  //add text label for the y axis
+  svg.append("text")
+      .attr("y", height+margin.bottom )
+      .attr("x",(width / 2) )
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .text("Average City MPG");   
+	  
+	  
+// plot circle	
+svg.append("g").attr("transform", "translate( " + margin.left + "," + margin.top + ")").selectAll("circle") 
+  .data(data)
+  .enter()
+  .append("circle")
+  .attr("cx", function(d) {
+    return logScaleX(d.AverageCityMPG);
+  })
+  .attr("cy", function(d) {
+    return logScaleY(d.AverageHighwayMPG) ;
+  })
+  .attr("r",function(d) {
+    return 7;
+  }) 
+  .style("fill", function(d,i){ return color(d.Fuel)})
+  .attr("class", function (d) { return d.Fuel } )
+  .on("mouseover", showTooltip )
+  .on("mousemove", moveTooltip )
+  .on("mouseleave", hideTooltip )
+  ;
+  
+ 
+ //add checkboxes
+  
+  d3.select(".checkBoxes").selectAll("input")
+  .data(color.domain())
+  .enter().append("label")
+  .text(function(d) { return d; })
+  .style("color",function(d){ return color(d)})
+  .append("input")
+  .attr("checked", true)
+  .attr("type", "checkbox")
+  .attr("id", "legendCheckbox")
+  .attr("value",function(d) { return d; })
+  .on("change",highlight)
+  ;
+   
+	
+}
+</script>
+</body>
+</html>
